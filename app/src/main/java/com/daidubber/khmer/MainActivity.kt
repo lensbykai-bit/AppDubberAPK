@@ -45,7 +45,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     val src=contentResolver.openInputStream(uri)!!.bufferedReader().use{it.readText()}
     items.clear()
     val time=Regex("""\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}[,.]\d{3}""")
-    for(block in src.replace("\r","").split(Regex("\n\s*\n"))){
+    for(block in src.replace("\r","").split(Regex("""\n\s*\n"""))){
      val lines=block.lines();val i=lines.indexOfFirst{time.containsMatchIn(it)}
      if(i>=0)items.add(lines.drop(i+1).joinToString(" ").trim())
     }
