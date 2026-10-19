@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1123"><title>DubStudio KH Pro</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="logo">D<span>✦</span></div>
+    <div class="brand"><strong>DubStudio <em>KH Pro</em></strong><small>AI VIDEO DUBBING STUDIO</small></div>
+    <span class="beta">ANDROID</span>
+  </header>
+  <main>
+    <section class="hero">
+      <div class="hero-top"><span class="eyebrow"><span class="pulse"></span> MOBILE STUDIO · v1.0 beta</span><span class="hero-icon">✦</span></div>
+      <h1>បកប្រែ និងបញ្ចូល<br><span>សំឡេង AI ខ្មែរ</span></h1>
+      <p>ពីវីដេអូ → Subtitle → សំឡេងប្រុស/ស្រី → MP4</p>
+      <div class="step-track"><div class="track-fill" id="stepFill"></div></div>
+      <div class="step-info"><span id="stepText">ជំហាន 1 / 4 · Video</span><span id="totalLines">0 subtitles</span></div>
+    </section>
+
+    <section class="screen" id="screen-import">
+      <div class="section-head"><span class="step-num">01</span><div><h2>នាំចូលវីដេអូ</h2><p>Upload វីដេអូពីទូរស័ព្ទ ឬ SRT ដែលមានស្រាប់</p></div></div>
+      <button class="dropzone" id="chooseVideo" type="button"><span class="upload-mark">↥</span><strong id="videoName">ចុចដើម្បីជ្រើសវីដេអូ</strong><small id="videoDetail">MP4, MOV និង video formats ផ្សេងៗ · ដល់ 200 MB</small><span class="select-pill">+ Import Video</span></button>
+      <button class="soft-link" id="openVideo" type="button">▷ មើលវីដេអូដែលបានជ្រើស</button>
+      <div class="or"><span>ឬ</span></div>
+      <button class="secondary full" id="importSrt" type="button"><span>▤</span> Import Subtitle (.srt)</button>
+      <div class="info-row"><span>◎</span> ស្រង់សំឡេងពីវីដេអូដោយ Whisper AI ត្រូវការភ្ជាប់ Server។</div>
+      <button class="primary full" id="startTranscribe" type="button">✦ Generate Subtitle ដោយ AI <span>→</span></button>
+      <button class="next-link" id="goSubs" type="button">មាន SRT រួចហើយ? ទៅកែ Subtitle →</button>
+    </section>
+
+    <section class="screen hidden" id="screen-subtitles">
+      <div class="section-head"><span class="step-num">02</span><div><h2>Subtitle & Translation</h2><p>ពិនិត្យអត្ថបទ កែ Timing និងបកប្រែខ្មែរ</p></div></div>
+      <div class="toolbar"><span class="result-count" id="listCount">0 lines</span><button class="mini" id="addLine">+ បន្ថែម</button><button class="mini" id="saveSrt">↓ SRT</button></div>
+      <div id="subtitleList" class="subtitle-list"></div>
+      <div id="emptySub" class="empty-panel">មិនទាន់មាន Subtitle ទេ។ សូម Import SRT ឬ Generate ពីវីដេអូ។</div>
+      <button class="primary full" id="translate" type="button">🌐 បកប្រែ Subtitle ជាភាសាខ្មែរ <span>→</span></button>
+      <button class="secondary full gap-top" id="recap" type="button">✎ បង្កើតសម្រាយរឿង AI</button>
+      <div id="recapArea" class="hidden recap-area"><label for="recapText">AI Film Recap (editable)</label><textarea rows="5" id="recapText" placeholder="សេចក្តីសម្រាយរឿង…"></textarea></div>
+    </section>
+
+    <section class="screen hidden" id="screen-voices">
+      <div class="section-head"><span class="step-num">03</span><div><h2>AI Voice Casting</h2><p>ជ្រើសសំឡេងប្រុស ឬស្រីសម្រាប់តួអង្គ</p></div></div>
+      <div class="voice-tiles"><button class="voice-tile female" id="allFemale"><span class="avatar">♀</span><span><strong>Female Voice</strong><small>Sreymom · Khmer Neural</small></span><b>→</b></button><button class="voice-tile male" id="allMale"><span class="avatar">♂</span><span><strong>Male Voice</strong><small>Piseth · Khmer Neural</small></span><b>→</b></button></div>
+      <div class="info-row"><span>♬</span> កែសំឡេងតាម Subtitle នីមួយៗក្នុងផ្ទាំង Subtitle។ ចុចកាតខាងលើ ដើម្បីកំណត់ទាំងអស់។</div>
+      <div class="summary-card"><div class="summary-line"><span>Subtitle ដែលបានរៀបចំ</span><strong id="voiceCount">0</strong></div><div class="summary-line"><span>Male / Female</span><strong id="voiceSplit">0 / 0</strong></div><div class="summary-line"><span>Backend TTS</span><strong>Edge Khmer Neural</strong></div></div>
+      <button class="secondary full" id="preview" type="button">▷ សាកល្បងសំឡេង (Android TTS)</button>
+      <small class="muted">សំឡេង Preview អាស្រ័យលើ TTS ដែលទូរស័ព្ទបានដំឡើង។ សំឡេង Export ប្រើ Server Khmer Neural។</small>
+      <button class="primary full" id="generateAudio" type="button">◉ Generate Khmer Dubbing Audio <span>→</span></button>
+    </section>
+
+    <section class="screen hidden" id="screen-export">
+      <div class="section-head"><span class="step-num">04</span><div><h2>Export Video</h2><p>ទាញយក MP4 ដែលមានសំឡេងខ្មែរ</p></div></div>
+      <div class="export-art"><div class="film-frame"><span>▶</span></div><strong>Ready to render?</strong><p>Dubbed audio + video → MP4 (AAC audio)</p></div>
+      <div class="summary-card"><div class="summary-line"><span>Video</span><strong class="ellipsize" id="exportVideoLabel">Not selected</strong></div><div class="summary-line"><span>AI Voice WAV</span><strong id="exportAudioLabel">Not generated</strong></div><div class="summary-line"><span>Subtitles</span><strong id="exportSubsLabel">0 lines</strong></div></div>
+      <div class="warning">⚠ MP4 Export ជំនួសសំឡេងដើមដោយសំឡេង Dubbing។ កំណែនេះមិនទាន់ Burn Subtitle ទៅក្នុងវីដេអូទេ។</div>
+      <button class="primary full" id="exportVideo" type="button">↓ Export Dubbed MP4 <span>→</span></button>
+      <button class="secondary full gap-top" id="saveSrt2" type="button">↓ Download Khmer SRT</button>
+      <div class="success hidden" id="savedInfo"></div>
+    </section>
+
+    <section class="screen hidden" id="screen-settings">
+      <div class="section-head"><span class="step-num">⚙</span><div><h2>Server & Settings</h2><p>ភ្ជាប់ Android ជាមួយ DubAI Backend</p></div></div>
+      <div class="setting-card"><label for="serverUrl">Backend Server URL</label><input id="serverUrl" type="url" spellcheck="false" placeholder="http://192.168.1.10:3000" /><small>ប្រើ IP កុំព្យូទ័រនៅ Wi-Fi ដូចគ្នា ឬ HTTPS Server ដែលទុកចិត្តបាន។ កុំប្រើ localhost សម្រាប់ Server លើកុំព្យូទ័រ។</small><button class="primary full" id="saveServer" type="button">✓ រក្សាទុក URL និងពិនិត្យ Server</button></div>
+      <div class="server-status" id="serverStatus"><span class="status-dot"></span><span>Server មិនទាន់បានពិនិត្យ</span></div>
+      <div class="summary-card"><div class="summary-line"><span>Whisper transcription</span><strong id="aiStatus">—</strong></div><div class="summary-line"><span>FFmpeg Export</span><strong id="ffmpegStatus">—</strong></div><div class="summary-line"><span>Khmer TTS</span><strong id="ttsStatus">—</strong></div></div>
+      <div class="info-row"><span>🔐</span> API Key ត្រូវរក្សាទុកនៅ Backend Server; កុំបញ្ចូល Key ក្នុង APK។</div>
+      <button class="secondary full" id="testServer" type="button">↻ Test Connection</button>
+    </section>
+  </main>
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button type="button" data-tab="import" class="active"><span>▣</span><small>Video</small></button>
+    <button type="button" data-tab="subtitles"><span>≡</span><small>Subtitle</small></button>
+    <button type="button" data-tab="voices"><span>♫</span><small>Voices</small></button>
+    <button type="button" data-tab="export"><span>⇩</span><small>Export</small></button>
+    <button type="button" data-tab="settings"><span>⚙</span><small>Setting</small></button>
+  </nav>
+</div>
+<div class="progress-layer hidden" id="progressLayer" role="status" aria-live="polite"><div class="progress-card"><div class="progress-top"><span class="loader">◌</span><strong id="progressTitle">Processing…</strong></div><p id="progressText">សូមរក្សាកម្មវិធីឱ្យនៅបើករហូតដល់ការងារបញ្ចប់</p><div class="work-progress"><div id="workFill"></div></div><div class="progress-foot"><span id="progressPercent">កំពុងដំណើរការ…</span><span id="progressTime">00:00</span></div></div></div>
+<div class="toast hidden" id="toast" role="alert"></div>
+<script src="app.js"></script>
+</body></html>
