@@ -23,7 +23,7 @@ window.__nativeResult = function(msg){
 window.__nativeProgress=function(msg){
   if(!state.isBusy || translateInProgress)return;
   $('progressTitle').textContent=({transcribe:'Generating subtitles',audio:'Generating Khmer voices',export:'Exporting MP4',ping:'Checking server',recap:'Creating recap',saveSrt:'Saving SRT'})[msg.action]||'Working…';
-  const label=msg.stage==='processing'?'AI / Server កំពុងដំណើរការ…':msg.label;
+  const label=msg.label||'Cloud កំពុងដំណើរការ…';
   setProgress(msg.percent,label);
 };
 window.__ttsReady=function(msg){state.ttsReady=!!msg.available;};
@@ -89,9 +89,9 @@ function init(){document.querySelectorAll('[data-tab]').forEach(b=>b.addEventLis
   bind('generateAudio',()=>{if(!requireLines())return;if(state.subtitles.length>100){toast('Server ទទួលយកច្រើនបំផុត 100 Subtitles ក្នុងមួយ Audio។ សូមបែងចែក Clip ជាមុន');return;}
     job('Generating Khmer voices',async()=>{const result=await native('audio',payload());state.audioReady=true;showSaved(result.saved);toast('✓ WAV Dubbing បានបង្កើតរួច');});});
   bind('exportVideo',()=>{if(!state.audioReady||!state.video){toast('សូម Generate Audio និង Import Video ជាមុន');return;}hideSaved();job('Exporting MP4',async()=>{const r=await native('export');showSaved(r.saved);toast('✓ Export MP4 រួចរាល់');});});
-  bind('saveServer',()=>{job('Saving server settings',async()=>{const result=await native('setServer',{url:$('serverUrl').value});state.server=result.url;toast('✓ បានរក្សាទុក URL');});});
+  bind('saveServer',()=>{job('Saving Cloud settings',async()=>{const result=await native('setServer',{url:$('serverUrl').value,token:$('cloudToken').value});state.server=result.url;$('cloudToken').value='';$('tokenHint').textContent='✓ Access token has been securely saved. Leave blank to keep the current token.';toast('✓ បានរក្សាទុក Cloud URL និង Token');});});
   bind('testServer',checkServer);
-  native('getSettings').then(x=>{state.server=x.url||'';$('serverUrl').value=state.server;}).catch(()=>{});
+  native('getSettings').then(x=>{state.server=x.url||'';$('serverUrl').value=state.server;if(x.tokenConfigured)$('tokenHint').textContent='✓ Token រក្សាទុករួច។ ទុកប្រអប់ទទេ ដើម្បីប្រើ Token ដើម។';}).catch(()=>{});
   changeTab('import');
 }
 function changeTabAfterJob(name){setTimeout(()=>changeTab(name),0);/* busy state will be cleared by job finally */}

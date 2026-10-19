@@ -10,6 +10,14 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import java.security.KeyStore
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import android.speech.tts.TextToSpeech
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -75,11 +83,21 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             when (action) {
                 "pickVideo" -> runOnUiThread { pick("video/*", pickVideoCode) }
                 "pickSrt" -> runOnUiThread { pick("*/*", pickSrtCode) }
-                "getSettings" -> send(action, true, JSONObject().put("url", prefs.getString("server", "") ?: ""))
+                "getSettings" -> send(action, true, JSONObject().put("url", prefs.getString("server", "") ?: "")
+                    .put("tokenConfigured", prefs.contains("auth_token_encrypted")))
                 "setServer" -> {
                     val raw = JSONObject(data).optString("url").trim().trimEnd('/')
-                    if (!isAllowedServer(raw)) send(action, false, error = "Enter HTTPS URL, or a private Wi-Fi HTTP address (192.168.x.x / 10.x.x.x / 172.16–31.x.x).")
-                    else { prefs.edit().putString("server", raw).apply(); send(action, true, JSONObject().put("url", raw)) }
+                    val token = JSONObject(data).optString("token").trim()
+                    if (!isAllowedServer(raw)) send(action, false, error = "Cloud server must have a valid HTTPS URL (https://...onrender.com).")
+                    else if (token.isBlank() && !prefs.contains("auth_token_encrypted")) send(action, false, error = "Please enter your private Cloud access token (16+ characters).")
+                    else if (token.isNotBlank() && token.length < 16) send(action, false, error = "Access token must contain at least 16 characters.")
+                    else {
+                        try {
+                            if (token.isNotBlank()) prefs.edit().putString("auth_token_encrypted", encryptToken(token)).apply()
+                            prefs.edit().putString("server", raw).apply()
+                            send(action, true, JSONObject().put("url", raw).put("tokenConfigured", true))
+                        } catch (e: Exception) { send(action, false, error = "Could not save Cloud settings securely: ${e.message}") }
+                    }
                 }
                 "preview" -> runOnUiThread {
                     val input = JSONObject(data)
@@ -111,15 +129,16 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 "transcribe" -> background(action) {
                     val uri = videoUri ?: throw IllegalArgumentException("Please import a video first")
                     require(length(uri) in 0..(200L*1024*1024)) { "Video size must be known and within 200 MB" }
-                    val conn = connect("POST", "/api/transcribe", "multipart/form-data; boundary=$BOUNDARY")
+                    val conn = connect("POST", "/api/jobs/transcribe", "multipart/form-data; boundary=$BOUNDARY")
                     multipart(conn, listOf(Part("video", displayName(uri), "video/mp4", { contentResolver.openInputStream(uri) ?: error("Cannot read video") }, length(uri))), action)
-                    JSONObject(readJson(conn))
+                    pollJob(JSONObject(readJson(conn)).getString("job_id"), action).getJSONObject("result")
                 }
                 "translate" -> background(action) { postJson("/api/translate", data) }
                 "recap" -> background(action) { postJson("/api/recap", data) }
                 "audio" -> background(action) {
-                    val conn = postJsonConnection("/api/audio", data)
-                    val file = receiveFile(conn, "dubstudio-voice.wav", action)
+                    val jobId = postJson("/api/jobs/audio", data).getString("job_id")
+                    pollJob(jobId, action)
+                    val file = receiveFile(connect("GET", "/api/jobs/$jobId/download"), "dubstudio-voice.wav", action)
                     lastAudioFile?.delete()
                     lastAudioFile = file
                     val saved = saveFromFile("DubStudio-Voice-${System.currentTimeMillis()}.wav", "audio/wav", file)
@@ -130,12 +149,14 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                     require(length(uri) in 0..(200L*1024*1024)) { "Video size must be known and within 200 MB" }
                     val speech = lastAudioFile ?: throw IllegalArgumentException("Generate audio before exporting video")
                     if (!speech.exists()) throw IllegalArgumentException("Audio is missing. Generate again")
-                    val conn = connect("POST", "/api/export-video", "multipart/form-data; boundary=$BOUNDARY")
+                    val conn = connect("POST", "/api/jobs/export", "multipart/form-data; boundary=$BOUNDARY")
                     multipart(conn, listOf(
                         Part("video", displayName(uri), "video/mp4", { contentResolver.openInputStream(uri) ?: error("Cannot read video") }, length(uri)),
                         Part("audio", "dubbed-voice.wav", "audio/wav", { FileInputStream(speech) }, speech.length())
                     ), action)
-                    val file = receiveFile(conn, "dubstudio-dubbed.mp4", action)
+                    val jobId = JSONObject(readJson(conn)).getString("job_id")
+                    pollJob(jobId, action)
+                    val file = receiveFile(connect("GET", "/api/jobs/$jobId/download"), "dubstudio-dubbed.mp4", action)
                     val saved = saveFromFile("DubStudio-KH-Pro-${System.currentTimeMillis()}.mp4", "video/mp4", file)
                     file.delete()
                     JSONObject().put("saved", saved)
@@ -196,20 +217,69 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
     private fun isAllowedServer(raw: String): Boolean {
         val u = try { URL(raw) } catch (_: Exception) { return false }
+        if (u.protocol != "https" || u.host.isBlank()) return false
         if (u.userInfo != null || u.query != null || u.ref != null || u.path !in listOf("", "/")) return false
-        if (u.protocol == "https") return u.host.isNotBlank()
-        if (u.protocol != "http") return false
-        val host = u.host.lowercase(Locale.ROOT)
-        return host == "localhost" || host == "127.0.0.1" || host.startsWith("192.168.") || host.startsWith("10.") ||
-          Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\.").containsMatchIn(host)
+        return u.host != "localhost" && u.host != "127.0.0.1"
     }
+
+    // Store the user-chosen Cloud *access token* in Android Keystore (not OpenAI API key).
+    private fun accessKey(): SecretKey {
+        val store = KeyStore.getInstance("AndroidKeyStore")
+        store.load(null)
+        val name = "dubstudio_cloud_token_v1"
+        val stored = store.getKey(name, null)
+        if (stored is SecretKey) return stored
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(KeyGenParameterSpec.Builder(name,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
+        return generator.generateKey()
+    }
+
+    private fun encryptToken(token: String): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, accessKey())
+        return Base64.encodeToString(cipher.iv + cipher.doFinal(token.toByteArray(StandardCharsets.UTF_8)), Base64.NO_WRAP)
+    }
+
+    private fun decryptToken(): String {
+        val encrypted = prefs.getString("auth_token_encrypted", null)
+            ?: throw IllegalStateException("Enter Cloud access token in Settings first")
+        try {
+            val bytes = Base64.decode(encrypted, Base64.DEFAULT)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, accessKey(), GCMParameterSpec(128, bytes.copyOfRange(0, 12)))
+            return String(cipher.doFinal(bytes.copyOfRange(12, bytes.size)), StandardCharsets.UTF_8)
+        } catch (_: Exception) { throw IllegalStateException("Cloud token cannot be read. Re-enter it in Settings.") }
+    }
+
+    private fun pollJob(jobId: String, action: String): JSONObject {
+        require(jobId.matches(Regex("[0-9a-f]{32}"))) { "Invalid Cloud job ID" }
+        val deadline = System.currentTimeMillis() + 60L * 60L * 1000L
+        while (System.currentTimeMillis() < deadline) {
+            val info = JSONObject(readJson(connect("GET", "/api/jobs/$jobId")))
+            when (info.optString("status")) {
+                "done" -> return info
+                "error" -> throw IllegalStateException(info.optString("error", "Cloud task failed"))
+                "running", "queued" -> progress(action, info.optString("stage", "processing"),
+                    info.optInt("percent", -1), info.optString("label", "Cloud AI is working"))
+                else -> throw IllegalStateException("Unrecognized Cloud job status")
+            }
+            Thread.sleep(2300)
+        }
+        throw IllegalStateException("Cloud job timed out. Try a shorter video.")
+    }
+
     private fun connect(method: String, endpoint: String, contentType: String? = null): HttpURLConnection {
         val base = prefs.getString("server", "") ?: ""
-        require(isAllowedServer(base)) { "Set a backend server URL in Settings first" }
+        require(isAllowedServer(base)) { "Set your HTTPS Cloud server URL in Settings first" }
+        val token = decryptToken()
         val conn = (URL(base + endpoint).openConnection() as HttpURLConnection)
+        conn.setRequestProperty("Authorization", "Bearer $token")
         conn.requestMethod = method
-        conn.connectTimeout = 12000
-        conn.readTimeout = 600000
+        conn.connectTimeout = 25000
+        conn.readTimeout = 180000
         conn.useCaches = false
         conn.setRequestProperty("Accept", "application/json, */*")
         if (contentType != null) { conn.doOutput = true; conn.setRequestProperty("Content-Type", contentType) }

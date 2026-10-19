@@ -14,7 +14,7 @@
   </header>
   <main>
     <section class="hero">
-      <div class="hero-top"><span class="eyebrow"><span class="pulse"></span> MOBILE STUDIO · v1.0 beta</span><span class="hero-icon">✦</span></div>
+      <div class="hero-top"><span class="eyebrow"><span class="pulse"></span> CLOUD STUDIO · v1.1 beta</span><span class="hero-icon">✦</span></div>
       <h1>បកប្រែ និងបញ្ចូល<br><span>សំឡេង AI ខ្មែរ</span></h1>
       <p>ពីវីដេអូ → Subtitle → សំឡេងប្រុស/ស្រី → MP4</p>
       <div class="step-track"><div class="track-fill" id="stepFill"></div></div>
@@ -63,11 +63,11 @@
     </section>
 
     <section class="screen hidden" id="screen-settings">
-      <div class="section-head"><span class="step-num">⚙</span><div><h2>Server & Settings</h2><p>ភ្ជាប់ Android ជាមួយ DubAI Backend</p></div></div>
-      <div class="setting-card"><label for="serverUrl">Backend Server URL</label><input id="serverUrl" type="url" spellcheck="false" placeholder="http://192.168.1.10:3000" /><small>ប្រើ IP កុំព្យូទ័រនៅ Wi-Fi ដូចគ្នា ឬ HTTPS Server ដែលទុកចិត្តបាន។ កុំប្រើ localhost សម្រាប់ Server លើកុំព្យូទ័រ។</small><button class="primary full" id="saveServer" type="button">✓ រក្សាទុក URL និងពិនិត្យ Server</button></div>
+      <div class="section-head"><span class="step-num">⚙</span><div><h2>Server & Settings</h2><p>ភ្ជាប់ជាមួយ Cloud Backend ដោយសុវត្ថិភាព</p></div></div>
+      <div class="setting-card"><label for="serverUrl">Backend Server URL</label><input id="serverUrl" type="url" spellcheck="false" placeholder="https://YOUR-SERVICE.onrender.com" /><small>ដាក់ URL ពី Render Dashboard បន្ទាប់ពី Deploy បាន Live។ ត្រូវតែជា HTTPS។</small><label for="cloudToken" class="setting-label">Private Cloud access token</label><input id="cloudToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your DUBSTUDIO_ACCESS_TOKEN" /><small id="tokenHint">នេះគឺ Cloud access token ដែលអ្នកដាក់ក្នុង Render មិនមែន OpenAI API Key ទេ។ App រក្សាទុកវាជាសម្ងាត់ក្នុង Android Keystore។</small><button class="primary full" id="saveServer" type="button">✓ រក្សាទុក Cloud Settings</button></div>
       <div class="server-status" id="serverStatus"><span class="status-dot"></span><span>Server មិនទាន់បានពិនិត្យ</span></div>
       <div class="summary-card"><div class="summary-line"><span>Whisper transcription</span><strong id="aiStatus">—</strong></div><div class="summary-line"><span>FFmpeg Export</span><strong id="ffmpegStatus">—</strong></div><div class="summary-line"><span>Khmer TTS</span><strong id="ttsStatus">—</strong></div></div>
-      <div class="info-row"><span>🔐</span> API Key ត្រូវរក្សាទុកនៅ Backend Server; កុំបញ្ចូល Key ក្នុង APK។</div>
+      <div class="info-row"><span>🔐</span> កុំបញ្ចូល OpenAI API Key ក្នុងទូរស័ព្ទ។ ដាក់ Key នៅ Render Environment ប៉ុណ្ណោះ។</div>
       <button class="secondary full" id="testServer" type="button">↻ Test Connection</button>
     </section>
   </main>

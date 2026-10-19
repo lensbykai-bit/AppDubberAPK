@@ -1,7 +1,7 @@
 name: Build DubStudio KH Pro Android APK
 on:
   push:
-    branches: ['main', 'dubstudio-kh-pro-mobile']
+    branches: ['main', 'dubstudio-kh-pro-mobile', 'dubstudio-kh-pro-cloud']
   workflow_dispatch:
 jobs:
   android:
@@ -22,5 +22,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: DubStudio-KH-Pro-Mobile-debug-APK
+          name: DubStudio-KH-Pro-Cloud-Mobile-APK
           path: app/build/outputs/apk/debug/*.apk

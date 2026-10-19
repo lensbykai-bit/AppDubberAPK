@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: dubstudio-kh-pro-cloud
+    runtime: docker
+    plan: free
+    branch: dubstudio-kh-pro-cloud
+    healthCheckPath: /health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DUBSTUDIO_ACCESS_TOKEN
+        sync: false
+      - key: DUBSTUDIO_TRANSLATION_MODEL
+        value: gpt-4o-mini
+      - key: MAX_UPLOAD_MB
+        value: '200'
