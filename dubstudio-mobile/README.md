@@ -1,0 +1,1 @@
+DubStudio KH Pro Mobile — Android debug APK build. App features video upload, optional speaker scan on AI backend, original subtitles, Khmer translation, SRT export. Requires separately deployed HTTPS API backend from DubStudio_KH_Pro_Mobile_Android_Starter_v1.zip. No AI processing is embedded in this APK.
