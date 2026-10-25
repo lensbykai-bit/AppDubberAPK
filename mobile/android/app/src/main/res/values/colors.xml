@@ -1,0 +1,10 @@
+<resources>
+    <color name="bg">#121326</color>
+    <color name="surface">#22223E</color>
+    <color name="surface_lighter">#302A52</color>
+    <color name="accent">#8D78FF</color>
+    <color name="text">#F4F0FF</color>
+    <color name="muted">#ADAAC6</color>
+    <color name="stroke">#49426B</color>
+    <color name="success">#66E2B8</color>
+</resources>

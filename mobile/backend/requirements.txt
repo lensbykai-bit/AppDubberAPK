@@ -1,0 +1,11 @@
+fastapi>=0.110,<1
+uvicorn[standard]>=0.27,<1
+python-multipart>=0.0.9
+requests>=2.31
+faster-whisper>=1.1
+# Optional speaker diarization: install pyannote.audio separately after accepting model terms.
+
+numpy>=1.26
+soundfile>=0.12
+scipy>=1.11
+# Optional: install VoxCPM2, demucs, pyannote separately in a compatible GPU environment.

@@ -1,0 +1,22 @@
+DubStudio_KH_Pro_Mobile_Android/
+  README_KH.txt                         START HERE
+  android/
+    README_BUILD_KH.txt                 HOW TO BUILD APK
+    BUILD_APK_WINDOWS.bat               BUILD ON WINDOWS (ANDROID SDK NEEDED)
+    BUILD_WITH_GRADLE.ps1               OFFICIAL GRADLE BOOTSTRAP
+    settings.gradle
+    build.gradle
+    gradle.properties
+    app/
+      build.gradle
+      src/main/AndroidManifest.xml
+      src/main/java/ai/dubstudio/khpro/MainActivity.java
+      src/main/res/layout/activity_main.xml
+      src/main/res/drawable/...         COLORS, BUTTONS, ICONS
+  backend/
+    main.py                              REAL AI API
+    requirements.txt
+    .env.example                         CONFIG TEMPLATE (NO SECRET)
+    Dockerfile
+    compose.yaml
+    tests/test_api.py

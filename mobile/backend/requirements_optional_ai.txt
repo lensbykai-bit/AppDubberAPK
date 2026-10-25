@@ -1,0 +1,6 @@
+# Install ONLY on an appropriate backend GPU / compatible Python environment.
+# Verify compatibility with the base Faster-Whisper and Pyannote environment.
+voxcpm
+demucs
+# Optional speaker scan (requires gated model access):
+# pyannote.audio

@@ -1,0 +1,20 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ai.dubstudio.khpro'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ai.dubstudio.khpro'
+        minSdk 26
+        targetSdk 34
+        versionCode 2
+        versionName '1.1.0'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
