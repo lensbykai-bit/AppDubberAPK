@@ -6,6 +6,7 @@ Do not expose without HTTPS and DUBSTUDIO_API_TOKEN.
 from __future__ import annotations
 
 import json
+import importlib.util
 import os
 import re
 import shutil
@@ -90,8 +91,14 @@ def cleanup_old_jobs() -> None:
 def health():
     return {"ok": True, "whisper_model": WHISPER_SIZE,
             "speaker_scan_configured": ENABLE_DIARIZATION and bool(HF_TOKEN),
-            "translation_model": OLLAMA_MODEL, "demucs_enabled": ENABLE_DEMUCS,
-            "voxcpm_enabled": ENABLE_VOXCPM, "voice_clone_requires_consent": True}
+            "translation_model": OLLAMA_MODEL,
+            "ffmpeg_installed": shutil.which("ffmpeg") is not None,
+            "faster_whisper_installed": importlib.util.find_spec("faster_whisper") is not None,
+            "demucs_enabled": ENABLE_DEMUCS,
+            "demucs_installed": shutil.which("demucs") is not None,
+            "voxcpm_enabled": ENABLE_VOXCPM,
+            "voxcpm_installed": importlib.util.find_spec("voxcpm") is not None,
+            "voice_clone_requires_consent": True}
 
 
 @app.post("/api/jobs", dependencies=[Depends(require_token)])
@@ -272,6 +279,50 @@ def translate_to_khmer(text: str, source_language: str) -> str:
     if not result:
         raise RuntimeError("Translation returned an empty response")
     return result.strip('“”" ')
+
+
+@app.post("/api/jobs/{job_id}/resume-translation", dependencies=[Depends(require_token)])
+def resume_translation(job_id: str, background_tasks: BackgroundTasks):
+    folder = job_dir(job_id)
+    result_file = folder / "result.json"
+    if not result_file.exists():
+        raise HTTPException(409, "Generate original subtitles first")
+    state = read_json(folder / "status.json").get("stage")
+    if state not in ("failed", "done", "voice_failed"):
+        raise HTTPException(409, "A job is still processing")
+    result = read_json(result_file)
+    lines = result.get("subtitles", [])
+    if not lines:
+        raise HTTPException(409, "No subtitles to translate")
+    remaining = sum(not s.get("khmer", "").strip() for s in lines)
+    if remaining == 0:
+        raise HTTPException(409, "Khmer translation is already complete")
+    progress(job_id, "translate", 55, f"Resuming {remaining} untranslated lines...", original_ready=True,
+             khmer_ready=False)
+    background_tasks.add_task(process_remaining_translations, job_id)
+    return {"started": True, "remaining": remaining}
+
+
+def process_remaining_translations(job_id: str):
+    # Serialise with heavy model jobs to avoid exhausting a small backend.
+    with job_execution_lock:
+        folder = job_dir(job_id)
+        try:
+            result = read_json(folder / "result.json")
+            items = result["subtitles"]
+            lang = result.get("detected_language", "auto")
+            for i, entry in enumerate(items):
+                if not entry.get("khmer", "").strip():
+                    entry["khmer"] = translate_to_khmer(entry["original"], lang)
+                    write_json_atomic(folder / "result.json", result)
+                progress(job_id, "translate", 55 + int(44 * (i + 1) / len(items)),
+                         f"Translated {i + 1}/{len(items)} lines", original_ready=True,
+                         khmer_ready=False)
+            write_srt_files(folder, result)
+            progress(job_id, "done", 100, "Khmer subtitles are ready", original_ready=True, khmer_ready=True)
+        except Exception as err:
+            progress(job_id, "failed", 0, f"Translation retry failed: {str(err)[:300]}",
+                     original_ready=True, khmer_ready=False)
 
 
 def process_job(job_id: str, language: str, want_speakers: bool, isolate_vocals: bool = False) -> None:

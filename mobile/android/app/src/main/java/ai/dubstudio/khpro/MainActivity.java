@@ -76,9 +76,10 @@ public class MainActivity extends Activity {
     private EditText backendUrl, apiToken;
     private CheckBox scanSpeakers, isolateVocals, voiceConsent;
     private Button chooseVideo, startButton, saveOriginal, saveKhmer, renameSpeakers;
-    private Button selectVoiceRef, generateVoice, listenVoice, saveVoice, voiceStylesButton;
+    private Button selectVoiceRef, generateVoice, listenVoice, saveVoice, voiceStylesButton, checkServer, resumeKhmer;
+    private boolean serverVoxEnabled = false, serverDemucsEnabled = false, backendChecked = false;
     private final Map<String, String> voiceStyles = new LinkedHashMap<>();
-    private TextView fileName, progressText, scanStatus, originalStatus, khmerStatus, subtitlePreview, voiceStatus;
+    private TextView fileName, progressText, scanStatus, originalStatus, khmerStatus, subtitlePreview, voiceStatus, serverStatus;
     private ProgressBar progress;
 
     @Override protected void onCreate(Bundle state) {
@@ -96,6 +97,9 @@ public class MainActivity extends Activity {
         listenVoice = findViewById(R.id.listenVoice);
         saveVoice = findViewById(R.id.saveVoice);
         voiceStatus = findViewById(R.id.voiceStatus);
+        serverStatus = findViewById(R.id.serverStatus);
+        checkServer = findViewById(R.id.checkServer);
+        resumeKhmer = findViewById(R.id.resumeKhmer);
         chooseVideo = findViewById(R.id.chooseVideo);
         startButton = findViewById(R.id.startButton);
         saveOriginal = findViewById(R.id.saveOriginal);
@@ -114,6 +118,8 @@ public class MainActivity extends Activity {
         videoPreview.setMediaController(controller);
         chooseVideo.setOnClickListener(v -> selectVideo());
         startButton.setOnClickListener(v -> startProcessing());
+        checkServer.setOnClickListener(v -> testConnection());
+        resumeKhmer.setOnClickListener(v -> resumeTranslation());
         saveOriginal.setOnClickListener(v -> createSrtFile(false));
         saveKhmer.setOnClickListener(v -> createSrtFile(true));
         renameSpeakers.setOnClickListener(v -> showRenameDialog());
@@ -181,25 +187,92 @@ public class MainActivity extends Activity {
         refreshButtons();
     }
 
-    private void startProcessing() {
-        if (selectedVideo == null) { message("សូមជ្រើសរើសវីដេអូជាមុន។"); return; }
-        if (busy) return;
+    private boolean configureServer() {
         String endpoint = backendUrl.getText().toString().trim().replaceAll("/+$", "");
         String secret = apiToken.getText().toString().trim();
         if (!(endpoint.startsWith("https://") || endpoint.matches("http://10\\.0\\.2\\.2(:[0-9]+)?"))) {
-            message("សូមបញ្ចូល HTTPS Backend URL (ឬ 10.0.2.2 សម្រាប់ Android Emulator)។");
-            return;
+            message("សូមបញ្ចូល HTTPS AI Server URL ជាមុន។");
+            return false;
         }
-        if (secret.isEmpty()) { message("សូមបញ្ចូល API Token របស់អ្នក។"); return; }
+        if (secret.isEmpty()) { message("សូមបញ្ចូល API Token ជាមុន។"); return false; }
         server = endpoint;
-        authToken = secret;  // never persisted; only held in memory while the Activity exists
+        authToken = secret; // Never stored in SharedPreferences or app logs.
+        return true;
+    }
+
+    private String engineSummary(JSONObject health) {
+        String whisper = health.optString("whisper_model", "unknown");
+        boolean scan = health.optBoolean("speaker_scan_configured", false);
+        boolean demucs = health.optBoolean("demucs_enabled", false);
+        boolean voxcpm = health.optBoolean("voxcpm_enabled", false);
+        boolean demucsInstalled = health.optBoolean("demucs_installed", demucs);
+        boolean voxcpmInstalled = health.optBoolean("voxcpm_installed", voxcpm);
+        serverDemucsEnabled = demucs && demucsInstalled;
+        serverVoxEnabled = voxcpm && voxcpmInstalled;
+        backendChecked = true;
+        return "✓ Server connected\nFaster-Whisper: " + whisper + " (configured)"
+                + "\nSpeaker Scan: " + (scan ? "configured" : "not configured")
+                + "  ·  Demucs: " + (serverDemucsEnabled ? "configured" : "not ready")
+                + "\nVoxCPM2 / Voice Clone: " + (serverVoxEnabled ? "configured" : "not ready")
+                + "\nNote: Models still need a real generation test.";
+    }
+
+    private void testConnection() {
+        if (!configureServer()) return;
+        serverStatus.setText("Checking AI Server and engines...");
+        checkServer.setEnabled(false);
+        executor.execute(() -> {
+            try {
+                JSONObject health = getJson("/api/health");
+                ui.post(() -> {
+                    serverStatus.setText(engineSummary(health));
+                    refreshButtons();
+                });
+            } catch (Exception err) {
+                ui.post(() -> {
+                    backendChecked = false;
+                    serverStatus.setText("✕ Cannot connect to AI Server. Check HTTPS URL, API Token and server status.\n" + readableError(err));
+                    refreshButtons();
+                });
+            }
+        });
+    }
+
+    private void resumeTranslation() {
+        if (jobId == null || !originalReady || khmerReady || busy) return;
+        setBusy(true);
+        khmerStatus.setText("Resuming remaining Khmer subtitle lines...");
+        executor.execute(() -> {
+            try {
+                request("/api/jobs/" + jobId + "/resume-translation", "POST", "{}");
+                ui.post(this::pollJob);
+            } catch (Exception err) { onFailed("Resume translation failed: " + readableError(err)); }
+        });
+    }
+
+    private void startProcessing() {
+        if (selectedVideo == null) { message("សូមជ្រើសរើសវីដេអូជាមុន។"); return; }
+        if (busy) return;
+        if (!configureServer()) return;
+        final boolean wantsDemucs = isolateVocals.isChecked();
+        final boolean wantsSpeakerScan = scanSpeakers.isChecked();
         resetJob();
         setBusy(true);
-        progressText.setText("1% · Uploading video...");
+        progressText.setText("1% · Checking AI Server...");
         progress.setProgress(1);
         executor.execute(() -> {
             try {
-                JSONObject response = uploadVideo(selectedVideo, selectedName, scanSpeakers.isChecked(), isolateVocals.isChecked());
+                // Check before sending a potentially large video: no more silent backend failures.
+                JSONObject health = getJson("/api/health");
+                boolean demucs = health.optBoolean("demucs_enabled", false) && health.optBoolean("demucs_installed", true);
+                ui.post(() -> serverStatus.setText(engineSummary(health)));
+                if (wantsDemucs && !demucs) {
+                    throw new IOException("Demucs is disabled on the AI Server. Uncheck Demucs or enable it on the server.");
+                }
+                if (!health.optBoolean("ffmpeg_installed", true) || !health.optBoolean("faster_whisper_installed", true)) {
+                    throw new IOException("Faster-Whisper or FFmpeg is missing on the AI Server.");
+                }
+                JSONObject response = uploadVideo(selectedVideo, selectedName, wantsSpeakerScan, wantsDemucs);
                 jobId = response.getString("job_id");
                 ui.post(() -> {
                     progressText.setText("5% · Video uploaded. Starting AI...");
@@ -217,6 +290,8 @@ public class MainActivity extends Activity {
 
     private void refreshButtons() {
         startButton.setEnabled(!busy && selectedVideo != null);
+        checkServer.setEnabled(!busy && !voiceBusy);
+        resumeKhmer.setEnabled(!busy && !voiceBusy && jobId != null && originalReady && !khmerReady);
         chooseVideo.setEnabled(!busy);
         saveOriginal.setEnabled(originalReady);
         saveKhmer.setEnabled(khmerReady);
@@ -478,6 +553,9 @@ public class MainActivity extends Activity {
     }
 
     private void requestAIVoice() {
+        if (backendChecked && !serverVoxEnabled) {
+            message("VoxCPM2 is not enabled on this AI Server. Configure ENABLE_VOXCPM=1 first."); return;
+        }
         if (jobId == null || !khmerReady || busy || voiceBusy) {
             message("Khmer subtitles must be complete first"); return;
         }

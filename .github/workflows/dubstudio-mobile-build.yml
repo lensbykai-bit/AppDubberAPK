@@ -1,7 +1,7 @@
 name: Build DubStudio KH Pro Mobile APK
 on:
   push:
-    branches: [dubstudio-kh-pro-mobile-v1-1]
+    branches: [dubstudio-kh-pro-mobile-v1-2]
   workflow_dispatch:
 
 jobs:
@@ -30,6 +30,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: DubStudioKHProMobile-v1.1-debug-apk
+          name: DubStudioKHProMobile-v1.2-debug-apk
           path: mobile/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

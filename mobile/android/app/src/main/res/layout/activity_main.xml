@@ -12,7 +12,7 @@
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                     android:text="DubStudio KH Pro" android:textSize="21sp" android:textStyle="bold" android:textColor="@color/text" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="MOBILE · AI SUBTITLES · VOICE CLONE" style="@style/LabelMuted" />
+                    android:text="MOBILE v1.2 · AI SUBTITLES · VOICE CLONE" style="@style/LabelMuted" />
             </LinearLayout>
         </LinearLayout>
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -52,6 +52,12 @@
                 android:text="API Token" android:layout_marginTop="8dp" android:layout_marginBottom="4dp" />
             <EditText android:id="@+id/apiToken" style="@style/Input" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:hint="Secret token" android:inputType="textPassword" />
+            <Button android:id="@+id/checkServer" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="10dp" style="@style/SecondaryButton"
+                android:text="✓ Check AI Server / ពិនិត្យការភ្ជាប់" />
+            <TextView android:id="@+id/serverStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+                style="@style/LabelMuted" android:layout_marginTop="8dp"
+                android:text="AI Server: Not connected. Check Server before processing. Faster-Whisper, Demucs and VoxCPM2 run in the cloud, not on this phone." />
             <Button android:id="@+id/startButton" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="14dp" style="@style/PrimaryButton" android:text="✦ Generate Khmer Subtitles" />
             <ProgressBar android:id="@+id/progress" style="?android:attr/progressBarStyleHorizontal"
@@ -59,6 +65,9 @@
                 android:progress="0" android:progressTint="@color/accent" />
             <TextView android:id="@+id/progressText" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:layout_marginTop="10dp" android:text="0% · Ready" android:textSize="14sp" android:textColor="@color/text" />
+            <Button android:id="@+id/resumeKhmer" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" style="@style/SecondaryButton"
+                android:text="↻ Resume Khmer Translation" android:enabled="false" />
             <TextView android:id="@+id/scanStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
                 style="@style/LabelMuted" android:layout_marginTop="7dp" android:text="Scan Character — Waiting" />
             <TextView android:id="@+id/originalStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
